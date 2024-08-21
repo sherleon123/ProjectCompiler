@@ -119,12 +119,15 @@ TT_LTE = 'LTE'
 TT_GTE = 'GTE'
 TT_COMMA = 'COMMA'
 TT_ARROW = 'ARROW'
-TT_AND = 'AND'
-TT_OR = 'OR'
+TT_COLON='COLON'
 TT_HASH='HASH'
 
 KEYWORDS = [
-    'FUN'
+    'FUN',
+    'AND',
+    'OR',
+    'Lambd'
+
 ]
 
 
@@ -206,10 +209,6 @@ class Lexer:
                 self.advance()
             elif self.current_char == '=':
                 tokens.append(self.make_equals())
-            elif self.current_char == '&':
-                tokens.append(self.make_and())
-            elif self.current_char == '|':
-                tokens.append(self.make_or())
             elif self.current_char == '<':
                 tokens.append(self.make_less_than())
             elif self.current_char == '>':
@@ -248,27 +247,6 @@ class Lexer:
         tok_type = TT_KEYWORD if id_str in KEYWORDS else TT_IDENTIFIER
         return Token(tok_type, id_str, pos_start, self.pos)
 
-    def make_and(self):
-        pos_start = self.pos.copy()
-        self.advance()
-
-        if self.current_char == '&':
-            self.advance()
-            return Token(TT_AND, pos_start=pos_start, pos_end=self.pos), None
-
-        self.advance()
-        return None, ExpectedCharError(pos_start, self.pos, "'&' (after '&')")
-
-    def make_or(self):
-        pos_start = self.pos.copy()
-        self.advance()
-
-        if self.current_char == '|':
-            self.advance()
-            return Token(TT_OR, pos_start=pos_start, pos_end=self.pos), None
-
-        self.advance()
-        return None, ExpectedCharError(pos_start, self.pos, "'|' (after '|')")
 
     def make_minus_or_arrow(self):
         tok_type = TT_MINUS
@@ -449,7 +427,7 @@ class Parser:
         if not res.error and self.current_tok.type != TT_EOF:
             return res.failure(InvalidSyntaxError(
                 self.current_tok.pos_start, self.current_tok.pos_end,
-                "Expected '+', '-', '*', '/', '^', '==', '!=', '<', '>', <=', '>=', '&&' or '||'"
+                "Expected '+', '-', '*', '/', '^', '==', '!=', '<', '>', <=', '>='"
             ))
         return res
 
@@ -457,7 +435,7 @@ class Parser:
 
     def expr(self):
         res = ParseResult()
-        node = res.register(self.bin_op(self.comp_expr, (TT_AND, TT_OR)))
+        node = res.register(self.bin_op(self.comp_expr, ((TT_KEYWORD, 'AND'), (TT_KEYWORD, 'OR'))))
 
         if res.error:
             return res.failure(InvalidSyntaxError(
@@ -1024,11 +1002,10 @@ class Interpreter:
             result, error = left.get_comparison_lte(right)
         elif node.op_tok.type == TT_GTE:
             result, error = left.get_comparison_gte(right)
-        elif node.op_tok.type == TT_AND:
+        elif node.op_tok.matches(TT_KEYWORD, 'AND'):
             result, error = left.anded_by(right)
-        elif node.op_tok.type == TT_OR:
+        elif node.op_tok.matches(TT_KEYWORD, 'OR'):
             result, error = left.ored_by(right)
-
         if error:
             return res.failure(error)
         else:
