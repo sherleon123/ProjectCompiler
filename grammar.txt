@@ -11,7 +11,7 @@ factor			    : (PLUS|MINUS) factor
 
 call				: atom (LPAREN (expr (COMMA expr)*)? RPAREN)?
 
-atom 				: INT|FLOAT
+atom 				: INT
 					: LPAREN expr RPAREN
 					:func-def
 					:lam-def
