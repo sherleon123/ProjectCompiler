@@ -19,3 +19,12 @@ a(2)
 FUN a(b) -> b
 FUN c(d) -> d+2
 a(c(3))
+
+(2==3) # this is the comment feature
+(Lambd x:x+3)(2)#works for lambda too
+FUN a(b)->3 # and for functions
+
+
+#to do a while loop with recursion we need an or statement between the desiered while statement such as n==0 or f(n-1) so that every time the function goes to a desiered variable until it reaches 0
+
+
