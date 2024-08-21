@@ -1,4 +1,4 @@
-def string_with_arrows(text, pos_start, pos_end):
+def string_with_arrows(text, pos_start, pos_end):#highlights a specific section or text where the error is
     result = ''
 
     # Calculate indices
