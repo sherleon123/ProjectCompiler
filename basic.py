@@ -126,7 +126,9 @@ KEYWORDS = [
     'FUN',
     'AND',
     'OR',
-    'Lambd'
+    'Lambd',
+    'True',
+    'False'
 
 ]
 
@@ -168,7 +170,7 @@ class Lexer:
         self.pos.advance(self.current_char)
         self.current_char = self.text[self.pos.idx] if self.pos.idx < len(self.text) else None
 
-    def make_tokens(self):
+    def make_tokens(self):#give a meaning to each symbol
         tokens = []
         string = ''
         while self.current_char != None:
@@ -207,6 +209,9 @@ class Lexer:
             elif self.current_char == '%':
                 tokens.append(Token(TT_MODULU, pos_start=self.pos))
                 self.advance()
+            elif self.current_char == ':':
+                tokens.append(Token(TT_COLON, pos_start=self.pos))
+                self.advance()
             elif self.current_char == '=':
                 tokens.append(self.make_equals())
             elif self.current_char == '<':
@@ -226,7 +231,7 @@ class Lexer:
         tokens.append(Token(TT_EOF, pos_start=self.pos))
         return tokens, None
 
-    def make_number(self):
+    def make_number(self):#add numbers as one and not as chars
         num_str = ''
         pos_start = self.pos.copy()
 
@@ -236,7 +241,7 @@ class Lexer:
 
         return Token(TT_INT, int(num_str), pos_start, self.pos)
 
-    def make_identifier(self):
+    def make_identifier(self):#identify strings and KEYWORDS
         id_str = ''
         pos_start = self.pos.copy()
 
@@ -248,7 +253,7 @@ class Lexer:
         return Token(tok_type, id_str, pos_start, self.pos)
 
 
-    def make_minus_or_arrow(self):
+    def make_minus_or_arrow(self):#choose witch symbol is used
         tok_type = TT_MINUS
         pos_start = self.pos.copy()
         self.advance()
@@ -259,7 +264,7 @@ class Lexer:
 
         return Token(tok_type, pos_start=pos_start, pos_end=self.pos)
 
-    def make_not_equals(self):
+    def make_not_equals(self):#choose witch symbol is used
         tok_type = TT_NOT
         pos_start = self.pos.copy()
         self.advance()
@@ -271,7 +276,7 @@ class Lexer:
 
         return Token(tok_type, pos_start=pos_start, pos_end=self.pos), None
 
-    def make_equals(self):
+    def make_equals(self):#choose witch symbol is used
         tok_type = TT_EQ
         pos_start = self.pos.copy()
         self.advance()
@@ -282,7 +287,7 @@ class Lexer:
 
         return Token(tok_type, pos_start=pos_start, pos_end=self.pos)
 
-    def make_less_than(self):
+    def make_less_than(self):#choose witch symbol is used
         tok_type = TT_LT
         pos_start = self.pos.copy()
         self.advance()
@@ -293,7 +298,7 @@ class Lexer:
 
         return Token(tok_type, pos_start=pos_start, pos_end=self.pos)
 
-    def make_greater_than(self):
+    def make_greater_than(self):#choose witch symbol is used
         tok_type = TT_GT
         pos_start = self.pos.copy()
         self.advance()
@@ -325,7 +330,7 @@ class VarAccessNode:
 
 		self.pos_start = self.var_name_tok.pos_start
 		self.pos_end = self.var_name_tok.pos_end
-class BinOpNode:
+class BinOpNode:#Binary operation between two nodes
     def __init__(self, left_node, op_tok, right_node):
         self.left_node = left_node
         self.op_tok = op_tok
@@ -338,7 +343,7 @@ class BinOpNode:
         return f'({self.left_node}, {self.op_tok}, {self.right_node})'
 
 
-class UnaryOpNode:
+class UnaryOpNode:#a operation before node
     def __init__(self, op_tok, node):
         self.op_tok = op_tok
         self.node = node
@@ -350,7 +355,7 @@ class UnaryOpNode:
         return f'({self.op_tok}, {self.node})'
 
 
-class FuncDefNode:
+class FuncDefNode:#creating a function
 	def __init__(self, var_name_tok, arg_name_toks, body_node):
 		self.var_name_tok = var_name_tok
 		self.arg_name_toks = arg_name_toks
@@ -427,7 +432,7 @@ class Parser:
         if not res.error and self.current_tok.type != TT_EOF:
             return res.failure(InvalidSyntaxError(
                 self.current_tok.pos_start, self.current_tok.pos_end,
-                "Expected '+', '-', '*', '/', '^', '==', '!=', '<', '>', <=', '>='"
+                "Expected '+', '-', '*', '/', '^', '==', '!=', '<', '>', <=', '>=','AND','OR'"
             ))
         return res
 
@@ -435,7 +440,7 @@ class Parser:
 
     def expr(self):
         res = ParseResult()
-        node = res.register(self.bin_op(self.comp_expr, ((TT_KEYWORD, 'AND'), (TT_KEYWORD, 'OR'))))
+        node = res.register(self.bin_op(self.comp_expr, ((TT_KEYWORD, 'AND'), (TT_KEYWORD, 'OR'),(TT_KEYWORD, 'True'),(TT_KEYWORD, 'False'))))
 
         if res.error:
             return res.failure(InvalidSyntaxError(
@@ -559,14 +564,64 @@ class Parser:
             if res.error: return res
             return res.success(func_def)
 
+        elif tok.matches(TT_KEYWORD, 'Lambd'):
+            lam_def = res.register(self.lam_def())
+            if res.error: return res
+            return res.success(lam_def)
+
+
         return res.failure(InvalidSyntaxError(
             tok.pos_start, tok.pos_end,
             "Expected int, identifier, '+', '-', '(', 'FUN'"
         ))
 
-    def func_def(self):
+    def lam_def(self,name=None):#recognizes the use of Lambda
         res = ParseResult()
+        var_name_tok = name
+        if not self.current_tok.matches(TT_KEYWORD, 'Lambd'):
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                f"Expected 'Lambd'"
+            ))
+        res.register_advancement()
+        self.advance()
+        arg_name_toks = []
+        if self.current_tok.type == TT_IDENTIFIER:
+            arg_name_toks.append(self.current_tok)
+            res.register_advancement()
+            self.advance()
 
+            while self.current_tok.type == TT_COMMA:
+                res.register_advancement()
+                self.advance()
+
+                if self.current_tok.type != TT_IDENTIFIER:
+                    return res.failure(InvalidSyntaxError(
+                        self.current_tok.pos_start, self.current_tok.pos_end,
+                        f"Expected identifier"
+                    ))
+
+                arg_name_toks.append(self.current_tok)
+                res.register_advancement()
+                self.advance()
+
+        if self.current_tok.type != TT_COLON:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                f"Expected ':'"
+            ))
+        res.register_advancement()
+        self.advance()
+        node_to_return = res.register(self.expr())
+        if res.error: return res
+        return res.success(FuncDefNode(
+            var_name_tok,
+            arg_name_toks,
+            node_to_return
+        ))
+
+    def func_def(self):#recognizes the use of Function
+        res = ParseResult()
         if not self.current_tok.matches(TT_KEYWORD, 'FUN'):
             return res.failure(InvalidSyntaxError(
                 self.current_tok.pos_start, self.current_tok.pos_end,
@@ -639,8 +694,15 @@ class Parser:
 
         res.register_advancement()
         self.advance()
+
         node_to_return = res.register(self.expr())
         if res.error: return res
+
+        if self.current_tok.matches(TT_KEYWORD,'Lambd'):
+            lam_def = res.register(self.lam_def())
+            if res.error: return res
+            return res.success(lam_def)
+
 
         return res.success(FuncDefNode(
             var_name_tok,
@@ -650,7 +712,7 @@ class Parser:
 
         ###################################
 
-    def bin_op(self, func_a, ops, func_b=None):
+    def bin_op(self, func_a, ops, func_b=None):#the operation between two sides
         if func_b == None:
             func_b = func_a
 
@@ -774,7 +836,7 @@ class Value:
 		)
 
 
-class Number(Value):
+class Number(Value):#all the logical outcomes for Number Operators
     def __init__(self, value):
         super().__init__()
         self.value = value
@@ -887,12 +949,11 @@ class Function(Value):
         self.body_node = body_node
         self.arg_names = arg_names
 
-    def execute(self, args):
+    def execute(self, args):#does the function with args
         res = RTResult()
         interpreter = Interpreter()
         new_context = Context(self.name, self.context, self.pos_start)
         new_context.symbol_table = SymbolTable(new_context.parent.symbol_table)
-
         if len(args) > len(self.arg_names):
             return res.failure(RTError(
                 self.pos_start, self.pos_end,
@@ -958,7 +1019,7 @@ class Interpreter:
             Number(node.tok.value).set_context(context).set_pos(node.pos_start, node.pos_end)
         )
 
-    def visit_VarAccessNode(self, node, context):
+    def visit_VarAccessNode(self, node, context):#name of the function
         res = RTResult()
         var_name = node.var_name_tok.value
         value = context.symbol_table.get(var_name)
@@ -973,7 +1034,7 @@ class Interpreter:
         value = value.copy().set_pos(node.pos_start, node.pos_end)
         return res.success(value)
 
-    def visit_BinOpNode(self, node, context):
+    def visit_BinOpNode(self, node, context):#connection between two nodes
         res = RTResult()
         left = res.register(self.visit(node.left_node, context))
         if res.error: return res
@@ -1006,12 +1067,16 @@ class Interpreter:
             result, error = left.anded_by(right)
         elif node.op_tok.matches(TT_KEYWORD, 'OR'):
             result, error = left.ored_by(right)
+        elif node.op_tok.matches(TT_KEYWORD, 'True'):
+            result=None
+        elif node.op_tok.matches(TT_KEYWORD, 'False'):
+            result=None
         if error:
             return res.failure(error)
         else:
             return res.success(result.set_pos(node.pos_start, node.pos_end))
 
-    def visit_UnaryOpNode(self, node, context):
+    def visit_UnaryOpNode(self, node, context):#create the logical connection between operator and the node after
         res = RTResult()
         number = res.register(self.visit(node.node, context))
         if res.error: return res
@@ -1028,7 +1093,8 @@ class Interpreter:
         else:
             return res.success(number.set_pos(node.pos_start, node.pos_end))
 
-    def visit_FuncDefNode(self, node, context):
+
+    def visit_FuncDefNode(self, node, context):#create the function
         res = RTResult()
 
         func_name = node.var_name_tok.value if node.var_name_tok else None
@@ -1036,13 +1102,12 @@ class Interpreter:
         arg_names = [arg_name.value for arg_name in node.arg_name_toks]
         func_value = Function(func_name, body_node, arg_names).set_context(context).set_pos(node.pos_start,
                                                                                             node.pos_end)
-
         if node.var_name_tok:
             context.symbol_table.set(func_name, func_value)
 
         return res.success(func_value)
 
-    def visit_CallNode(self, node, context):
+    def visit_CallNode(self, node, context):#implements the arguments into the variable
         res = RTResult()
         args = []
 
