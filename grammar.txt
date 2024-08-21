@@ -14,7 +14,12 @@ call				: atom (LPAREN (expr (COMMA expr)*)? RPAREN)?
 atom 				: INT|FLOAT
 					: LPAREN expr RPAREN
 					:func-def
+					:lam-def
 
 func-def		    : KEYWORD:FUN IDENTIFIER?
 				    LPAREN (IDENTIFIER (COMMA IDENTIFIER)*)? RPAREN
-					ARROW expr
+					ARROW KEYWORD:FUN? expr KEYWORD:FUN?
+
+lam-def             : KEYWORD:Lambd
+                     IDENTIFIER? ((COMMA IDETIFIER)*)?
+                     COLON expr
