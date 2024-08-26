@@ -17,6 +17,7 @@ LETTERS_DIGITS = LETTERS + DIGITS
 #######################################
 # ERRORS
 #######################################
+# Base Error class to define and display errors
 
 class Error:
     def __init__(self, pos_start, pos_end, error_name, details):
@@ -49,6 +50,9 @@ class RTError(Error):
     def __init__(self, pos_start, pos_end, details, context):
         super().__init__(pos_start, pos_end, 'Runtime Error', details)
         self.context = context
+   
+
+ # Method to generate and display a traceback for runtime errors
 
     def as_string(self):
         result = self.generate_traceback()
@@ -72,6 +76,7 @@ class RTError(Error):
 #######################################
 # POSITION
 #######################################
+# Class to track the position of characters in the source code
 
 class Position:
     def __init__(self, idx, ln, col, fn, ftxt):
@@ -98,6 +103,8 @@ class Position:
 #######################################
 # TOKENS
 #######################################
+# Token types to represent different elements in the language
+
 TT_KEYWORD = 'KEYWORD'
 TT_IDENTIFIER	= 'IDENTIFIER'
 TT_INT = 'INT'
@@ -132,6 +139,7 @@ KEYWORDS = [
 
 ]
 
+# Token class to represent tokens during lexing and parsing
 
 class Token:
     def __init__(self, type_, value=None, pos_start=None, pos_end=None):
@@ -146,6 +154,8 @@ class Token:
         if pos_end:
             self.pos_end = pos_end.copy()
 
+    # Method to check if a token matches a specific type and value
+
     def matches(self, type_, value):
         return self.type == type_ and self.value == value
 
@@ -157,6 +167,7 @@ class Token:
 #######################################
 # LEXER
 #######################################
+# Lexer class to convert raw text into tokens
 
 class Lexer:
     def __init__(self, fn, text):
@@ -166,9 +177,13 @@ class Lexer:
         self.current_char = None
         self.advance()
 
+    # Advance to the next character in the text
+
     def advance(self):
         self.pos.advance(self.current_char)
         self.current_char = self.text[self.pos.idx] if self.pos.idx < len(self.text) else None
+
+# tokenize written text into language symbols (numbers, booleans and alphabet characters) for further operations
 
     def make_tokens(self):#give a meaning to each symbol
         tokens = []
@@ -228,8 +243,12 @@ class Lexer:
                 self.advance()
                 return [], IllegalCharError(pos_start, self.pos, "'" + char + "'")
 
+        # Add an EOF token to signify the end of input
+
         tokens.append(Token(TT_EOF, pos_start=self.pos))
         return tokens, None
+
+    # Method to handle number tokens
 
     def make_number(self):#add numbers as one and not as chars
         num_str = ''
@@ -240,6 +259,8 @@ class Lexer:
             self.advance()
 
         return Token(TT_INT, int(num_str), pos_start, self.pos)
+
+    # Method to handle identifiers and keywords
 
     def make_identifier(self):#identify strings and KEYWORDS
         id_str = ''
@@ -263,6 +284,8 @@ class Lexer:
             tok_type = TT_ARROW
 
         return Token(tok_type, pos_start=pos_start, pos_end=self.pos)
+
+    # Method to handle EQUAL or ASSIGNMENT tokens
 
     def make_not_equals(self):#choose witch symbol is used
         tok_type = TT_NOT
@@ -313,6 +336,7 @@ class Lexer:
 #######################################
 # NODES
 #######################################
+# AST Node for representing a number
 
 class NumberNode:
     def __init__(self, tok):
@@ -354,6 +378,7 @@ class UnaryOpNode:#a operation before node
     def __repr__(self):
         return f'({self.op_tok}, {self.node})'
 
+# AST Node for function definitions
 
 class FuncDefNode:#creating a function
 	def __init__(self, var_name_tok, arg_name_toks, body_node):
@@ -386,6 +411,7 @@ class CallNode:
 #######################################
 # PARSE RESULT
 #######################################
+# Class to manage the result of parsing operations
 
 class ParseResult:
     def __init__(self):
@@ -414,7 +440,7 @@ class ParseResult:
 #######################################
 # PARSER
 #######################################
-
+# Parser class to generate an AST from a list of tokens
 class Parser:
     def __init__(self, tokens):
         self.tokens = tokens
@@ -437,6 +463,7 @@ class Parser:
         return res
 
         ###################################
+    # Helper methods for parsing different types of expressions
 
     def expr(self):
         res = ParseResult()
@@ -743,13 +770,19 @@ class RTResult:
         self.value = None
         self.error = None
 
+    # Register the result or error from a function call
+
     def register(self, res):
         if res.error: self.error = res.error
         return res.value
 
+    # Mark the result as successful and store the value
+
     def success(self, value):
         self.value = value
         return self
+
+    # Mark the result as a failure and store the error
 
     def failure(self, error):
         self.error = error
@@ -761,6 +794,8 @@ class RTResult:
 #######################################
 
 class Value:
+    # Initialize value with position and context
+
 	def __init__(self):
 		self.set_pos()
 		self.set_context()
@@ -773,6 +808,8 @@ class Value:
 	def set_context(self, context=None):
 		self.context = context
 		return self
+
+    # The following methods handle illegal operations;
 
 	def added_to(self, other):
 		return None, self.illegal_operation(other)
@@ -1009,6 +1046,8 @@ class Interpreter:
         method = getattr(self, method_name, self.no_visit_method)
         return method(node, context)
 
+    # Default method if no specific visit method is defined
+
     def no_visit_method(self, node, context):
         raise Exception(f'No visit_{type(node).__name__} method defined')
 
@@ -1133,6 +1172,8 @@ class SymbolTable:
 		self.symbols = {}
 		self.parent = parent
 
+    # Get the value of a variable from the symbol table
+
 	def get(self, name):
 		value = self.symbols.get(name, None)
 		if value == None and self.parent:
@@ -1157,6 +1198,7 @@ global_symbol_table.set("NULL", Number(0))
 global_symbol_table.set("FALSE", Number(0))
 global_symbol_table.set("TRUE", Number(1))
 
+# Main function to run the interpreter
 
 def run(fn, text):
     # Generate tokens
